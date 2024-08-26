@@ -1,10 +1,10 @@
 package com.github.Hugornda.vendor_ms.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
 
@@ -21,33 +22,50 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 @EnableReactiveMethodSecurity
 public class SecurityConfig {
     private static final String ADMIN_ROLE = "ADMIN";
-    private static final String USERNAME = "admin";
-    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String USER_ROLE = "USER";
+    private static final String USER_USERNAME = "user";
+    private final VendorAccessDeniedHandler vendorAccessDeniedHandler;
 
     @Value("${app.admin-password}")
     private String adminPassword;
 
+    @Value("${app.user-password}")
+    private String userPassword;
+
+    public SecurityConfig(VendorAccessDeniedHandler vendorAccessDeniedHandler) {
+        this.vendorAccessDeniedHandler = vendorAccessDeniedHandler;
+    }
+
     @Bean
     public MapReactiveUserDetailsService userDetailsService() {
-        String encode = passwordEncoder().encode(adminPassword);
-        log.info(encode);
-        UserDetails user = User.builder()
-                .username(USERNAME)
-                .password(encode)
+        String encodedAdminPassword = passwordEncoder().encode(adminPassword);
+        String encodedUserPassword = passwordEncoder().encode(userPassword);
+        UserDetails adminUser = User.builder()
+                .username(ADMIN_USERNAME)
+                .password(encodedAdminPassword)
                 .roles(ADMIN_ROLE)
                 .build();
-        return new MapReactiveUserDetailsService(user);
+
+        UserDetails defaultUser = User.builder()
+                .username(USER_USERNAME)
+                .password(encodedUserPassword)
+                .roles(USER_ROLE)
+                .build();
+
+        return new MapReactiveUserDetailsService(adminUser, defaultUser);
     }
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         http
-            .csrf().disable() // Disable CSRF
-            .authorizeExchange()
-            .pathMatchers("/graphql").authenticated() // Auth only required for the graphql requests
-            .anyExchange().permitAll() // Allow other paths
-            .and()
-            .httpBasic();
+            .csrf(ServerHttpSecurity.CsrfSpec::disable) // Disable CSRF
+            .authorizeExchange(authorizeExchangeSpec -> authorizeExchangeSpec
+                    .pathMatchers("/graphql").authenticated() // Auth only required for the graphql requests
+                    .anyExchange().permitAll())
+            .exceptionHandling(exceptionHandlingSpec ->
+                    exceptionHandlingSpec.accessDeniedHandler(vendorAccessDeniedHandler))
+            .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }

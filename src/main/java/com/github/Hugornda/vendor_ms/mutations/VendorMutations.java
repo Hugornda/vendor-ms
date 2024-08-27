@@ -1,6 +1,7 @@
 package com.github.Hugornda.vendor_ms.mutations;
 
 import com.github.Hugornda.vendor_ms.model.Vendor;
+import com.github.Hugornda.vendor_ms.model.exceptions.InvalidInputException;
 import com.github.Hugornda.vendor_ms.model.exceptions.VendorAlreadyExistsException;
 import com.github.Hugornda.vendor_ms.repository.VendorRepository;
 import com.netflix.graphql.dgs.DgsComponent;
@@ -28,6 +29,9 @@ public class VendorMutations {
     public Mono<Vendor> createVendor(@InputArgument String name,
                                      @InputArgument Integer numberOfEmployees,
                                      @InputArgument String country) {
+        if( name == null || name.isEmpty()) {
+            return Mono.error(new InvalidInputException("Vendor name can NOT be empty"));
+        }
         Vendor vendor = new Vendor(name, numberOfEmployees, country);
         return vendorRepository.save(vendor)
                 .doOnNext(res-> log.info("Created vendor: {}", toJsonString(res)))

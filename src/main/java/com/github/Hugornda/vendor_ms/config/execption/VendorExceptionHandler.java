@@ -1,5 +1,6 @@
 package com.github.Hugornda.vendor_ms.config.execption;
 
+import com.github.Hugornda.vendor_ms.model.exceptions.InvalidInputException;
 import com.github.Hugornda.vendor_ms.model.exceptions.VendorAlreadyExistsException;
 import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
@@ -19,28 +20,22 @@ public class VendorExceptionHandler implements DataFetcherExceptionHandler {
     public CompletableFuture<DataFetcherExceptionHandlerResult> handleException(DataFetcherExceptionHandlerParameters handlerParameters) {
         GraphQLError graphQLError;
         Throwable exception = handlerParameters.getException();
-        if (exception instanceof VendorAlreadyExistsException) {
-            graphQLError = getDuplicatedVendorGraphQLError();
-        }else {
-            graphQLError = getDefaultGraphqlError(exception);
-        }
+
+        graphQLError = switch (exception) {
+            case VendorAlreadyExistsException e -> getGraphqlError(e.getMessage(), e.getErrorType());
+            case InvalidInputException e -> getGraphqlError(e.getMessage(),e.getErrorType());
+            default -> getGraphqlError(exception.getMessage(), ErrorType.INTERNAL_ERROR);
+        };
         DataFetcherExceptionHandlerResult exceptionHandlerResult = DataFetcherExceptionHandlerResult.newResult()
                 .error(graphQLError)
                 .build();
          return CompletableFuture.completedFuture(exceptionHandlerResult);
     }
 
-    private static GraphQLError getDefaultGraphqlError(Throwable exception) {
+    private static GraphQLError getGraphqlError(String message, ErrorType errorType) {
         return GraphqlErrorBuilder.newError()
-                .message(exception.getMessage())
-                .errorType(ErrorType.INTERNAL_ERROR)
-                .build();
-    }
-
-    private static GraphQLError getDuplicatedVendorGraphQLError() {
-        return GraphqlErrorBuilder.newError()
-                .message("A vendor with this name already exists.")
-                .errorType(ErrorType.BAD_REQUEST)
+                .message(message)
+                .errorType(errorType)
                 .build();
     }
 }

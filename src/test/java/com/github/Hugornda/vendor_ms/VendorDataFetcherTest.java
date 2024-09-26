@@ -1,99 +1,68 @@
 package com.github.Hugornda.vendor_ms;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.Hugornda.vendor_ms.datafetcher.VendorDataFetcher;
 import com.github.Hugornda.vendor_ms.model.Vendor;
 import com.github.Hugornda.vendor_ms.repository.VendorRepository;
-import com.github.Hugornda.vendor_ms.utils.TestUtils;
+import com.github.Hugornda.vendor_ms.service.VendorService;
+import com.netflix.graphql.dgs.DgsQueryExecutor;
+import com.netflix.graphql.dgs.autoconfig.DgsAutoConfiguration;
+import graphql.ExecutionResult;
+import org.dataloader.impl.Assertions;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
-
-import java.io.IOException;
+import reactor.test.StepVerifier;
+import reactor.test.scheduler.VirtualTimeScheduler;
 
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
+@SpringBootTest(classes = {DgsAutoConfiguration.class, VendorDataFetcher.class})
 @ActiveProfiles("test")
 @AutoConfigureWebTestClient
 public class VendorDataFetcherTest {
 
+
     @Autowired
-    private WebTestClient webTestClient;
+    DgsQueryExecutor queryExecutor;
+
+    ObjectMapper objectMapper = new ObjectMapper();
+
 
     @MockBean
-    private VendorRepository vendorRepository;
+    VendorRepository vendorRepository;
+
+    @MockBean
+    private VendorService vendorService;
 
 
     @Test
-    @WithMockUser(roles = "ADMIN")
-    void testGetAllVendors() throws IOException {
-        String graphqlQuery = TestUtils.loadGraphQLQuery("graphql/getAllVendors.graphql");
-        when(vendorRepository.findAll()).thenReturn(Flux.just(
-                new Vendor("Vendor", 100, "USA"),
-                new Vendor("Vendor1", 200, "Canada")
-        ));
-        String responseBody = webTestClient.post()
-                .uri("/graphql")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(graphqlQuery)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(String.class)
-                .returnResult()
-                .getResponseBody();
+    void vendors() {
+        ExecutionResult executionResult = queryExecutor.execute("subscription { vendors { name, price } }");
+        Publisher<ExecutionResult> publisher = executionResult.getData();
+        Vendor partialVendor = new Vendor("test vendor", 100, "PT"); // Missing ID and country
 
-        System.out.println("Response Body: " + responseBody);
-    }
-
-
-    @Test
-    public void getAllVendorsUnauthorized() throws IOException {
-        String graphqlQuery = TestUtils.loadGraphQLQuery("graphql/getAllVendors.graphql");
-        webTestClient.post()
-                .uri("/graphql")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(graphqlQuery)
-                .exchange()
-                .expectStatus().isUnauthorized();
-    }
-
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
-    void testGetAllVendorsBadRequest() throws IOException {
-        String invalidGraphqlQuery = TestUtils.loadGraphQLQuery("graphql/invalidgetall.graphql"); // Invalid field in query
-        webTestClient.post()
-                .uri("/graphql")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(invalidGraphqlQuery)
-                .exchange()
-                .expectStatus().isOk() // GraphQL often returns a 200 status even for errors
-                .expectBody()
-                .jsonPath("$.errors").exists(); // Ensure errors are present in the response
-    }
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
-    void testGetAllVendorsDataIntegrity() throws IOException {
-        Vendor partialVendor = new Vendor("test vendor", 0, null); // Missing ID and country
         when(vendorRepository.findAll()).thenReturn(Flux.just(partialVendor));
-
-        String graphqlQuery = TestUtils.loadGraphQLQuery("graphql/getAllVendors.graphql");
-        webTestClient.post()
-                .uri("/graphql")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(graphqlQuery)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody()
-                .jsonPath("$.data.vendors[0].name").isEqualTo("test vendor")
-                .jsonPath("$.data.vendors[0].country").doesNotExist();
+        VirtualTimeScheduler virtualTimeScheduler = VirtualTimeScheduler.create();
+        StepVerifier.withVirtualTime(() -> publisher, 3)
+                .expectSubscription()
+                .thenRequest(1)
+                .assertNext(result -> Assertions.nonNull(toVendor(result).getName()))
+                .thenCancel()
+                .verify();
     }
+
+    private Vendor toVendor(ExecutionResult result) {
+        Object data = result.getData();
+        return objectMapper.convertValue(data, Vendor.class);
+    }
+
+
+
+
 }

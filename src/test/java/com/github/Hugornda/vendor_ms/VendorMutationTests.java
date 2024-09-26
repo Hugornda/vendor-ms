@@ -1,11 +1,7 @@
 package com.github.Hugornda.vendor_ms;
 
-import com.github.Hugornda.vendor_ms.mutations.VendorMutations;
-import com.github.Hugornda.vendor_ms.repository.VendorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
@@ -14,8 +10,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
-
-import java.io.IOException;
 
 
 @SpringBootTest
@@ -26,11 +20,6 @@ public class VendorMutationTests {
     @Autowired
     private WebTestClient webTestClient;
 
-    @Mock
-    private VendorRepository vendorRepository;
-
-    @InjectMocks
-    private VendorMutations vendorMutations;
 
     private final String graphqlQuery = "{ \"query\": " +
             "\"mutation { " +

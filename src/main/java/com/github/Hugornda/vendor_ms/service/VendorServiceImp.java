@@ -4,6 +4,7 @@ import com.github.Hugornda.vendor_ms.model.Vendor;
 import com.github.Hugornda.vendor_ms.model.exceptions.VendorAlreadyExistsException;
 import com.github.Hugornda.vendor_ms.repository.VendorRepository;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -11,6 +12,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 
+@Slf4j
 @Service
 public class VendorServiceImp implements VendorService {
 
@@ -33,11 +35,16 @@ public class VendorServiceImp implements VendorService {
         return vendorPublisher;
     }
 
+    public Flux<Vendor> getAllVendors() {
+        return vendorRepository.findAll();
+    }
+
     @Override
     public Mono<Vendor> createVendor(String name, int numberOfEmployees, String country) {
         Vendor vendor = new Vendor(name, numberOfEmployees, country);
         return vendorRepository.save(vendor)
                 .doOnNext(savedVendor -> {
+	                log.info("Created new vendor: {}", savedVendor);
                     vendorSink.tryEmitNext(savedVendor);
                 })
                 .onErrorResume(DuplicateKeyException.class, e -> Mono.error(

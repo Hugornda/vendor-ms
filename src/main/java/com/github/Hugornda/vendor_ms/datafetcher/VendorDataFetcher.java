@@ -3,6 +3,7 @@ package com.github.Hugornda.vendor_ms.datafetcher;
 import com.github.Hugornda.vendor_ms.model.Vendor;
 import com.github.Hugornda.vendor_ms.service.VendorService;
 import com.netflix.graphql.dgs.DgsComponent;
+import com.netflix.graphql.dgs.DgsQuery;
 import com.netflix.graphql.dgs.DgsSubscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,4 +27,11 @@ public class VendorDataFetcher {
         return vendorService.findAll()
                 .doOnNext(res->log.info(toJsonString(res)));
     }
+
+
+    @DgsQuery
+    public Flux<Vendor> getAllVendors() {
+        return vendorService.getAllVendors();
+    }
+
 }

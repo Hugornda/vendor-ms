@@ -8,6 +8,10 @@ type Subscription {
     vendors: Vendor
 }
 
+type Query {
+    getAllVendors: [Vendor]
+}
+
 type Mutation {
     createVendor(name: String, numberOfEmployees: Int, country: String): Vendor
 }

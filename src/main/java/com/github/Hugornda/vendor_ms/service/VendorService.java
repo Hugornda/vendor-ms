@@ -5,6 +5,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface VendorService {
+    Flux<Vendor> getAllVendors();
     Flux<Vendor> findAll();
     Mono<Vendor> createVendor(String name , int numberOfEmployees, String country);
 }

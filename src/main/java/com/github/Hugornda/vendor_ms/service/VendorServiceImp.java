@@ -15,7 +15,6 @@ import reactor.core.publisher.Sinks;
 @Slf4j
 @Service
 public class VendorServiceImp implements VendorService {
-
     private final VendorRepository vendorRepository;
     private Sinks.Many<Vendor> vendorSink;
     private Flux<Vendor> vendorPublisher;
@@ -38,6 +37,12 @@ public class VendorServiceImp implements VendorService {
     public Flux<Vendor> getAllVendors() {
         return vendorRepository.findAll();
     }
+
+
+    public Flux<Vendor> getVendorsFilteredByEmployeeNumber(int maxEmployees){
+        return vendorRepository.filteredVendorsByEmployeeNumber(maxEmployees);
+    }
+
 
     @Override
     public Mono<Vendor> createVendor(String name, int numberOfEmployees, String country) {

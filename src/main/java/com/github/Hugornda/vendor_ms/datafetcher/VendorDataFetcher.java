@@ -5,6 +5,7 @@ import com.github.Hugornda.vendor_ms.service.VendorService;
 import com.netflix.graphql.dgs.DgsComponent;
 import com.netflix.graphql.dgs.DgsQuery;
 import com.netflix.graphql.dgs.DgsSubscription;
+import com.netflix.graphql.dgs.InputArgument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -28,10 +29,14 @@ public class VendorDataFetcher {
                 .doOnNext(res->log.info(toJsonString(res)));
     }
 
-
     @DgsQuery
     public Flux<Vendor> getAllVendors() {
         return vendorService.getAllVendors();
+    }
+
+    @DgsQuery(field = "filteredVendors")
+    public Flux<Vendor> getFilteredVendors(@InputArgument Integer maxEmployees){
+        return vendorService.getVendorsFilteredByEmployeeNumber(maxEmployees);
     }
 
 }

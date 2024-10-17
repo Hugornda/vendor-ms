@@ -10,6 +10,7 @@ type Subscription {
 
 type Query {
     getAllVendors: [Vendor]
+    filteredVendors(maxEmployees: Int): [Vendor]
 }
 
 type Mutation {
